@@ -5,9 +5,10 @@ import csv
 def connect_db():
     try:
         connection = mysql.connector.connect(
-            host="localhost",  
+            host="localhost",
             user="root",  
-            password=""  
+            password="password",
+            port = 3306  
         )
         return connection
     except mysql.connector.Error as err:
@@ -25,8 +26,9 @@ def connect_to_prodev():
     connection = mysql.connector.connect(
         host="localhost",
         user="root",
-        password="",
-        database="ALX_prodev"
+        password="password",
+        database="ALX_prodev",
+        port = 3306
     )
     return connection
 
@@ -35,7 +37,7 @@ def create_table(connection):
     cursor = connection.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS user_data (
-        user_id UUID PRIMARY KEY,
+        user_id CHAR(36) PRIMARY KEY,  -- Use CHAR(36) for UUIDs as strings
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,
         age DECIMAL NOT NULL
