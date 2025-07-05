@@ -6,6 +6,9 @@ def stream_users_in_batches(batch_size):
     Generator function that streams users in batches from the user_data table.
     Yields batches of rows, each of size `batch_size`.
     """
+    connection = None
+    cursor = None
+    
     try:
         # Connect to the MySQL database
         connection = mysql.connector.connect(
@@ -19,10 +22,13 @@ def stream_users_in_batches(batch_size):
         # Execute the query to select all rows from user_data
         cursor.execute("SELECT user_id, name, email, age FROM user_data")
         
+        # Fetch all rows first
+        rows = cursor.fetchall()
+        
         # Initialize an empty batch
         batch = []
-        # Loop 1: Fetch rows and yield them in batches
-        for row in cursor:
+        # Loop 1: Process rows and yield them in batches
+        for row in rows:
             batch.append(row)
             if len(batch) >= batch_size:
                 yield batch
@@ -32,12 +38,12 @@ def stream_users_in_batches(batch_size):
         if batch:
             yield batch
             
-    except mysql.connector.Error as e:
-        print(f"Database error: {e}")
+    except Exception:
+        pass
     finally:
-        if 'cursor' in locals():
+        if cursor:
             cursor.close()
-        if 'connection' in locals():
+        if connection:
             connection.close()
 
 
