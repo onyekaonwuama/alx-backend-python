@@ -6,33 +6,39 @@ def stream_users_in_batches(batch_size):
     Generator function that streams users in batches from the user_data table.
     Yields batches of rows, each of size `batch_size`.
     """
-    # Connect to the MySQL database
-    connection = mysql.connector.connect(
-        host="localhost",
-        user="root",  
-        password="password",  
-        database="ALX_prodev" 
-    )
-    
-    cursor = connection.cursor(dictionary=True)  # Fetch results as dictionaries
-    # Execute the query to select all rows from user_data
-    cursor.execute("SELECT * FROM user_data")
-    
-    # Initialize an empty batch
-    batch = []
-    # Loop 1: Fetch rows and yield them in batches
-    for row in cursor:
-        batch.append(row)  # Add the row to the batch
-        if len(batch) >= batch_size:
-            yield batch  # Yield the current batch
-            batch = []  # Reset the batch for the next set of rows
-    
-    # Yield any remaining rows in the final batch
-    if batch:
-        yield batch
-    
-    cursor.close()
-    connection.close()
+    try:
+        # Connect to the MySQL database
+        connection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="password",
+            database="ALX_prodev"
+        )
+        
+        cursor = connection.cursor(dictionary=True)
+        # Execute the query to select all rows from user_data
+        cursor.execute("SELECT user_id, name, email, age FROM user_data")
+        
+        # Initialize an empty batch
+        batch = []
+        # Loop 1: Fetch rows and yield them in batches
+        for row in cursor:
+            batch.append(row)
+            if len(batch) >= batch_size:
+                yield batch
+                batch = []
+        
+        # Yield any remaining rows in the final batch
+        if batch:
+            yield batch
+            
+    except mysql.connector.Error as e:
+        print(f"Database error: {e}")
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'connection' in locals():
+            connection.close()
 
 
 def batch_processing(batch_size):
