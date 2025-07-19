@@ -72,13 +72,25 @@ class ConversationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """
-        Create a conversation with participants
+        Create a conversation with participants and proper validation
         """
         participant_ids = validated_data.pop('participant_ids')
-        conversation = Conversation.objects.create(**validated_data)
         
-        # Add participants to the conversation
+        # Validate that we have at least 2 participants
+        if len(participant_ids) < 2:
+            raise serializers.ValidationError(
+                "A conversation must have at least 2 participants"
+            )
+        
+        # Validate that all participant IDs exist
         participants = User.objects.filter(user_id__in=participant_ids)
+        if participants.count() != len(participant_ids):
+            missing_ids = set(participant_ids) - set(participants.values_list('user_id', flat=True))
+            raise serializers.ValidationError(
+                f"Users with IDs {list(missing_ids)} do not exist"
+            )
+        
+        conversation = Conversation.objects.create(**validated_data)
         conversation.participants.set(participants)
         
         return conversation

@@ -91,7 +91,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 class MessageViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing messages
+    ViewSet for managing messages with nested routing support
     """
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
@@ -100,36 +100,78 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filter messages based on conversations the user participates in
+        Handle nested routing for /conversations/{id}/messages/
         """
-        user_conversations = Conversation.objects.filter(
-            participants=self.request.user
-        ).values_list('conversation_id', flat=True)
+        # Check if this is a nested route (conversation messages)
+        conversation_pk = self.kwargs.get('conversation_conversation_id')
         
-        return Message.objects.filter(
-            conversation_id__in=user_conversations
-        ).select_related('sender', 'conversation')
-    
-    def create(self, request):
-        """
-        Create a new message
-        """
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            # Verify the conversation exists and user is a participant
-            conversation_id = serializer.validated_data['conversation'].conversation_id
+        if conversation_pk:
+            # Nested route: /conversations/{id}/messages/
             try:
                 conversation = Conversation.objects.get(
-                    conversation_id=conversation_id,
+                    conversation_id=conversation_pk,
+                    participants=self.request.user
+                )
+                return Message.objects.filter(
+                    conversation=conversation
+                ).select_related('sender', 'conversation').order_by('sent_at')
+            except Conversation.DoesNotExist:
+                return Message.objects.none()
+        else:
+            # Top-level route: /messages/
+            user_conversations = Conversation.objects.filter(
+                participants=self.request.user
+            ).values_list('conversation_id', flat=True)
+            
+            return Message.objects.filter(
+                conversation_id__in=user_conversations
+            ).select_related('sender', 'conversation')
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new message with proper nested routing support
+        """
+        # Check if this is a nested route
+        conversation_pk = self.kwargs.get('conversation_conversation_id')
+        
+        if conversation_pk:
+            # For nested routes, automatically set the conversation
+            try:
+                conversation = Conversation.objects.get(
+                    conversation_id=conversation_pk,
                     participants=request.user
                 )
+                # Add conversation to request data
+                data = request.data.copy()
+                data['conversation'] = conversation.conversation_id
+                serializer = self.get_serializer(data=data)
             except Conversation.DoesNotExist:
                 return Response(
                     {'error': 'Conversation not found or you are not a participant'},
                     status=status.HTTP_403_FORBIDDEN
                 )
+        else:
+            serializer = self.get_serializer(data=request.data)
+        
+        if serializer.is_valid():
+            if conversation_pk:
+                # For nested routes, we already verified the conversation
+                message = serializer.save(sender=request.user, conversation=conversation)
+            else:
+                # For top-level routes, verify conversation access
+                conversation_id = serializer.validated_data['conversation'].conversation_id
+                try:
+                    conversation = Conversation.objects.get(
+                        conversation_id=conversation_id,
+                        participants=request.user
+                    )
+                    message = serializer.save(sender=request.user)
+                except Conversation.DoesNotExist:
+                    return Response(
+                        {'error': 'Conversation not found or you are not a participant'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
             
-            # Set the sender to the current user
-            message = serializer.save(sender=request.user)
             response_serializer = MessageSerializer(message)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         
@@ -138,7 +180,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def by_conversation(self, request):
         """
-        Get messages for a specific conversation
+        Get messages for a specific conversation (for backward compatibility)
         """
         conversation_id = request.query_params.get('conversation_id')
         

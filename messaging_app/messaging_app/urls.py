@@ -16,9 +16,22 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+
+# Root view for API landing page
+def api_root(request):
+    return JsonResponse({
+        'message': 'Welcome to the Messaging App API!',
+        'routes': {
+            'conversations': '/api/conversations/',
+            'messages': '/api/messages/',
+            'admin': '/admin/'
+        }
+    })
 
 urlpatterns = [
+    path('', api_root),
     path('admin/', admin.site.urls),
     path('api/', include('chats.urls')),
-    path('api-auth/', include('rest_framework.urls')),  # For browsable API authentication
+    path('api-auth/', include('rest_framework.urls')),
 ]
