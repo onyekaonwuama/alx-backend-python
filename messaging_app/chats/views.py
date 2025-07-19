@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -21,6 +21,9 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'user_id'
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['first_name', 'last_name', 'email']
+    ordering_fields = ['first_name', 'last_name', 'created_at']
 
 class ConversationViewSet(viewsets.ModelViewSet):
     """
@@ -28,6 +31,10 @@ class ConversationViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated]
     lookup_field = 'conversation_id'
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['title']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-updated_at']
     
     def get_queryset(self):
         """
@@ -96,6 +103,10 @@ class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'message_id'
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['content']
+    ordering_fields = ['sent_at']
+    ordering = ['sent_at']
     
     def get_queryset(self):
         """
